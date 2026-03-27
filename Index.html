@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>🚢 Captain's Battle!</title>
+
+<!-- PWA Meta Tags -->
+<meta name="application-name" content="Captain's Battle">
+<meta name="description" content="A fun naval battle game for kids! Place your ships and sink the enemy fleet!">
+<meta name="theme-color" content="#1a9fe0">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- Apple / iOS specific -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Captain's Battle">
+
+<!-- App icon (inline SVG as data URI — ship emoji on ocean background) -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231a9fe0'/><text y='.9em' font-size='78' x='10'>🚢</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231a9fe0'/><text y='.9em' font-size='78' x='10'>🚢</text></svg>">
+
+<!-- Inline Web App Manifest as data URI -->
+<link rel="manifest" href="data:application/manifest+json,{
+  %22name%22: %22Captain's Battle!%22,
+  %22short_name%22: %22Captain's Battle%22,
+  %22description%22: %22A fun naval battle game for kids!%22,
+  %22start_url%22: %22.%22,
+  %22display%22: %22standalone%22,
+  %22orientation%22: %22portrait%22,
+  %22background_color%22: %22%2387ceeb%22,
+  %22theme_color%22: %22%231a9fe0%22,
+  %22icons%22: [{
+    %22src%22: %22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231a9fe0'/><text y='.9em' font-size='78' x='10'>🚢</text></svg>%22,
+    %22sizes%22: %22any%22,
+    %22type%22: %22image/svg+xml%22,
+    %22purpose%22: %22any maskable%22
+  }]
+}">
+
+<link href="https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ocean: #1a9fe0;
+  --ocean-deep: #0d5fa6;
+  --ocean-light: #5dd0f5;
+  --ocean-pale: #d0f0fd;
+  --sky1: #87ceeb;
+  --sky2: #b8e8ff;
+  --sun: #ffd60a;
+  --sun-dark: #e6a817;
+  --coral: #ff6b6b;
+  --coral-dark: #cc3333;
+  --mint: #06d6a0;
+  --mint-dark: #04a87d;
+  --sand: #ffbe0b;
+  --sand-dark: #d49900;
+  --ship-body: #2dc653;
+  --ship-dark: #1a7a33;
+  --hit-color: #ff4d4d;
+  --miss-color: #8ecae6;
+  --white: #ffffff;
+  --ink: #1a1a2e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 35%, var(--ocean-pale) 70%, #a8d8f0 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── ANIMATED BACKGROUND ── */
+.bg-scene {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Wobbly sun */
+.sun {
+  position: absolute;
+  top: 18px; right: 60px;
+  width: 70px; height: 70px;
+  background: radial-gradient(circle, #fff7a0 30%, var(--sun) 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 10px rgba(255,214,10,0.18), 0 0 0 22px rgba(255,214,10,0.09);
+  animation: sunPulse 4s ease-in-out infinite;
+}
+@keyframes sunPulse {
+  0%,100%{box-shadow:0 0 0 10px rgba(255,214,10,0.18),0 0 0 22px rgba(255,214,10,0.09);}
+  50%{box-shadow:0 0 0 16px rgba(255,214,10,0.22),0 0 0 32px rgba(255,214,10,0.1);}
+}
+
+/* Clouds */
+.cloud {
+  position: absolute;
+  border-radius: 50px;
+  animation: cloudDrift linear infinite;
+}
+.cloud::before, .cloud::after { content:''; position:absolute; background:inherit; border-radius:50%; }
+.c1{width:110px;height:36px;background:#fff;top:28px;left:-130px;animation-duration:32s;opacity:.95;}
+.c1::before{width:56px;height:56px;top:-22px;left:16px;}
+.c1::after{width:40px;height:40px;top:-14px;left:52px;}
+.c2{width:80px;height:26px;background:#eff9ff;top:62px;left:-100px;animation-duration:22s;animation-delay:-9s;opacity:.75;}
+.c2::before{width:40px;height:40px;top:-16px;left:12px;}
+.c3{width:140px;height:42px;background:#fff;top:10px;left:-160px;animation-duration:40s;animation-delay:-18s;opacity:.85;}
+.c3::before{width:68px;height:68px;top:-28px;left:22px;}
+.c3::after{width:46px;height:46px;top:-18px;left:66px;}
+@keyframes cloudDrift{from{transform:translateX(0)}to{transform:translateX(115vw)}}
+
+/* Ocean wave strip */
+.wave-strip {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 100px;
+}
+
+/* Floating fish */
+.fish {
+  position: absolute;
+  font-size: 1.8rem;
+  animation: fishSwim linear infinite;
+  bottom: 12px;
+  filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.15));
+}
+.fish:nth-child(1){animation-duration:18s;animation-delay:0s;}
+.fish:nth-child(2){animation-duration:24s;animation-delay:-7s;font-size:1.3rem;bottom:30px;}
+.fish:nth-child(3){animation-duration:14s;animation-delay:-12s;font-size:2.2rem;bottom:5px;}
+@keyframes fishSwim{
+  from{transform:translateX(-80px) scaleX(1);}
+  49.9%{transform:translateX(110vw) scaleX(1);}
+  50%{transform:translateX(110vw) scaleX(-1);}
+  99.9%{transform:translateX(-80px) scaleX(-1);}
+  to{transform:translateX(-80px) scaleX(1);}
+}
+
+/* Bubbles */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  border: 2px solid rgba(255,255,255,0.6);
+  animation: bubbleRise linear infinite;
+}
+@keyframes bubbleRise{
+  0%{transform:translateY(0) scale(1); opacity:0.7;}
+  100%{transform:translateY(-120px) scale(1.3); opacity:0;}
+}
+
+/* ── APP SHELL ── */
+#app {
+  position: relative;
+  z-index: 1;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 12px 14px 80px;
+}
+
+/* ── TITLE ── */
+.game-title {
+  text-align: center;
+  margin-bottom: 4px;
+  padding-top: 10px;
+}
+.game-title h1 {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: clamp(2.4rem, 8vw, 4.2rem);
+  color: var(--white);
+  text-shadow:
+    3px 3px 0 var(--ocean-deep),
+    6px 6px 0 rgba(0,0,0,0.12);
+  letter-spacing: 2px;
+  line-height: 1.1;
+}
+.game-title .tagline {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ocean-deep);
+  background: rgba(255,255,255,0.7);
+  display: inline-block;
+  padding: 4px 18px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+
+/* ── CARD BASE ── */
+.card {
+  background: white;
+  border-radius: 28px;
+  padding: 24px 26px;
+  box-shadow:
+    0 6px 0 rgba(0,0,0,0.12),
+    0 12px 32px rgba(13,95,166,0.14);
+  border: 3px solid rgba(255,255,255,0.8);
+  margin-bottom: 18px;
+}
+.card-title {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.6rem;
+  color: var(--ocean-deep);
+  text-align: center;
+  margin-bottom: 18px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* ── SETUP PANEL ── */
+#setup-panel { max-width: 580px; margin: 16px auto; }
+
+.name-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #fff8e1, #fffacd);
+  border-radius: 18px;
+  padding: 12px 16px;
+  border: 3px solid var(--sand);
+}
+.name-input-row label {
+  font-weight: 900;
+  color: var(--ocean-deep);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+.name-input-row input[type=text] {
+  flex: 1;
+  padding: 9px 14px;
+  border: 3px solid var(--sand);
+  border-radius: 14px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.2rem;
+  color: var(--ocean-deep);
+  outline: none;
+  background: white;
+  transition: border-color 0.2s, transform 0.1s;
+  min-width: 0;
+}
+.name-input-row input[type=text]:focus {
+  border-color: var(--ocean);
+  transform: scale(1.02);
+}
+
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  background: var(--ocean-pale);
+  border-radius: 16px;
+  padding: 10px 16px;
+  border: 2px solid var(--ocean-light);
+}
+.setup-row label {
+  font-weight: 900;
+  color: var(--ocean-deep);
+  font-size: 1rem;
+  min-width: 120px;
+}
+.setup-row input[type=range] {
+  flex: 1;
+  min-width: 80px;
+  accent-color: var(--ocean);
+  cursor: pointer;
+  height: 8px;
+}
+.val-badge {
+  background: var(--ocean);
+  color: white;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.3rem;
+  border-radius: 50%;
+  width: 42px; height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 0 var(--ocean-deep);
+}
+
+.ships-setup {
+  background: linear-gradient(135deg, #e8f8ff, #f0faff);
+  border-radius: 20px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border: 3px dashed var(--ocean-light);
+}
+.ships-setup h3 {
+  font-family: 'Bubblegum Sans', cursive;
+  color: var(--ocean);
+  margin-bottom: 14px;
+  font-size: 1.2rem;
+  text-align: center;
+}
+.ship-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  background: white;
+  border-radius: 14px;
+  padding: 8px 14px;
+  border: 2.5px solid var(--ocean-pale);
+  transition: border-color 0.2s;
+}
+.ship-row:hover { border-color: var(--ocean-light); }
+.ship-row .ship-icon { font-size: 1.5rem; width: 30px; flex-shrink: 0; }
+.ship-row label {
+  font-weight: 900;
+  color: var(--ink);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+.ship-preview { display: flex; gap: 3px; flex-shrink: 0; }
+.ship-cell-preview {
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border-radius: 5px;
+  border: 2px solid #15803d;
+}
+.ship-row .spacer { flex: 1; }
+.ship-row input[type=number] {
+  width: 64px;
+  padding: 7px 8px;
+  border: 3px solid var(--ocean-light);
+  border-radius: 12px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.2rem;
+  color: var(--ocean-deep);
+  text-align: center;
+  outline: none;
+  flex-shrink: 0;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.ship-row input[type=number]:focus {
+  border-color: var(--ocean);
+  transform: scale(1.05);
+}
+#fleet-error {
+  color: var(--coral-dark);
+  font-weight: 900;
+  font-size: 0.9rem;
+  display: none;
+  margin-top: 8px;
+  text-align: center;
+  background: #fff0f0;
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+
+/* ── BIG BUTTONS ── */
+.btn-launch {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, #ff6b35, #ff4500);
+  color: white;
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #b83200, 0 10px 24px rgba(255,107,53,0.35);
+  transition: transform 0.1s, box-shadow 0.1s;
+  letter-spacing: 1px;
+  animation: btnWiggle 3s ease-in-out infinite;
+}
+@keyframes btnWiggle {
+  0%,90%,100%{transform:translateY(0) rotate(0deg);}
+  93%{transform:translateY(-3px) rotate(-1.5deg);}
+  96%{transform:translateY(-3px) rotate(1.5deg);}
+}
+.btn-launch:hover {
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 9px 0 #b83200, 0 14px 28px rgba(255,107,53,0.4) !important;
+  animation: none;
+}
+.btn-launch:active { transform: translateY(4px) !important; box-shadow: 0 2px 0 #b83200 !important; }
+
+/* ── HIGH SCORE PANEL ── */
+#highscore-panel { max-width: 580px; margin: 0 auto 20px; }
+#highscore-panel .card-title { color: var(--sand-dark); }
+
+.hs-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+.hs-table thead th {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 0.8rem;
+  color: var(--ocean-deep);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 8px 6px;
+  text-align: left;
+}
+.hs-row td {
+  padding: 9px 8px;
+  background: var(--ocean-pale);
+  font-weight: 800;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+.hs-row td:first-child { border-radius: 12px 0 0 12px; padding-left: 14px; }
+.hs-row td:last-child  { border-radius: 0 12px 12px 0; text-align: right; padding-right: 14px; }
+.hs-row.gold   td { background: linear-gradient(135deg, #fff9c4, #fffde7); }
+.hs-row.silver td { background: linear-gradient(135deg, #f0f0f0, #fafafa); }
+.hs-row.bronze td { background: linear-gradient(135deg, #fde8d8, #fff4ed); }
+.hs-rank  { font-family:'Bubblegum Sans',cursive; font-size:1.2rem; }
+.hs-name  { font-family:'Bubblegum Sans',cursive; font-size:1.05rem; color:var(--ocean-deep); }
+.hs-result-win  { color:var(--mint-dark); font-size:0.88rem; font-weight:900; }
+.hs-result-lose { color:#999; font-size:0.88rem; font-weight:900; }
+.hs-score { font-family:'Bubblegum Sans',cursive; font-size:1rem; color:var(--ocean); }
+.hs-date  { font-size:0.75rem; color:#bbb; font-weight:700; }
+.hs-empty {
+  text-align:center; color:#bbb; font-size:1rem;
+  padding:20px 0; font-weight:800;
+}
+.hs-clear-btn {
+  display: block;
+  margin: 12px auto 0;
+  padding: 6px 20px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 0.95rem;
+  background: #fff0f0;
+  color: var(--coral-dark);
+  border: 2.5px solid #ffb3b3;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.hs-clear-btn:hover { background: #ffe0e0; transform: scale(1.04); }
+
+/* ── GAME AREA ── */
+#game-area { display: none; }
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.scoreboard {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.score-card {
+  background: white;
+  border-radius: 16px;
+  padding: 8px 14px;
+  text-align: center;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.1), 0 6px 16px rgba(0,0,0,0.07);
+  border: 2.5px solid rgba(255,255,255,0.9);
+  min-width: 58px;
+}
+.score-card .sc-label {
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: var(--ocean-deep);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.score-card .sc-val {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.5rem;
+  color: var(--ocean);
+  line-height: 1.1;
+}
+.score-card.captain-card { background: linear-gradient(135deg,#fff8e1,#fffacd); border-color: var(--sand); }
+.score-card.captain-card .sc-val { color: var(--ocean-deep); font-size: 1rem; }
+.score-card.hit-card .sc-val { color: var(--coral); }
+.score-card.sunk-card .sc-val { color: var(--mint-dark); }
+
+#turn-indicator {
+  background: linear-gradient(135deg, var(--sand), #ffcf3a);
+  border-radius: 18px;
+  padding: 10px 22px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.15rem;
+  color: var(--ocean-deep);
+  box-shadow: 0 4px 0 var(--sand-dark);
+  animation: turnBounce 1.8s ease-in-out infinite;
+}
+@keyframes turnBounce {
+  0%,100%{transform:translateY(0);}
+  50%{transform:translateY(-4px);}
+}
+
+.btn-back {
+  padding: 10px 20px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1rem;
+  background: linear-gradient(135deg, #ff9a3c, #ff6b35);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #b83200;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.btn-back:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #b83200; }
+.btn-back:active { transform: translateY(3px); box-shadow: 0 1px 0 #b83200; }
+
+/* ── PLACEMENT PANEL ── */
+#placement-panel {
+  background: linear-gradient(135deg, #e0f7fa, #e8f8ff);
+  border-radius: 22px;
+  padding: 16px 20px;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.1);
+  margin-bottom: 14px;
+  border: 3px solid var(--ocean-light);
+}
+#placement-panel h3 {
+  font-family: 'Bubblegum Sans', cursive;
+  color: var(--ocean-deep);
+  font-size: 1.3rem;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.placement-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+#placing-info {
+  font-weight: 900;
+  color: var(--ocean-deep);
+  font-size: 0.95rem;
+  background: white;
+  border-radius: 10px;
+  padding: 5px 12px;
+  border: 2px solid var(--ocean-light);
+}
+.current-ship-display { display: flex; gap: 4px; align-items: center; }
+.current-ship-display .s {
+  width: 24px; height: 24px;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border-radius: 6px;
+  border: 2px solid #15803d;
+  box-shadow: 0 2px 0 #0f6027;
+}
+
+.btn-action {
+  padding: 9px 16px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1rem;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+  white-space: nowrap;
+}
+.btn-action:active { transform: translateY(3px) !important; }
+.btn-rotate {
+  background: linear-gradient(135deg, var(--sand), #ffcf3a);
+  color: var(--ocean-deep);
+  box-shadow: 0 4px 0 var(--sand-dark);
+}
+.btn-rotate:hover { transform: translateY(-2px) rotate(15deg); box-shadow: 0 6px 0 var(--sand-dark); }
+.btn-auto {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 0 #5b21b6;
+}
+.btn-auto:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #5b21b6; }
+
+.placement-ships-list {
+  display: flex; gap: 7px; flex-wrap: wrap; margin-top: 8px;
+}
+.place-ship-item {
+  background: white;
+  border: 2.5px solid var(--ocean-light);
+  border-radius: 12px;
+  padding: 5px 12px;
+  font-size: 0.88rem;
+  font-weight: 900;
+  color: var(--ocean-deep);
+  display: flex; align-items: center; gap: 5px;
+  transition: all 0.2s;
+}
+.place-ship-item.done {
+  background: #d1fae5;
+  border-color: var(--mint);
+  color: var(--mint-dark);
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+/* ── THINKING ── */
+.thinking {
+  text-align: center;
+  font-family: 'Bubblegum Sans', cursive;
+  color: var(--ocean);
+  font-size: 1.1rem;
+  padding: 6px 0 10px;
+}
+.thinking span {
+  display: inline-block;
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.thinking span:nth-child(2){animation-delay:.15s;}
+.thinking span:nth-child(3){animation-delay:.3s;}
+@keyframes dotBounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-8px);}}
+
+/* ── BOARDS ── */
+.boards-container {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.board-wrapper {
+  background: white;
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.1), 0 12px 30px rgba(13,95,166,0.13);
+  flex: 1;
+  min-width: 280px;
+  max-width: 470px;
+  border: 3px solid rgba(255,255,255,0.9);
+}
+.board-title {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.25rem;
+  color: var(--ocean-deep);
+  text-align: center;
+  margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.board-subtitle {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #aaa;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.grid-container { overflow-x: auto; }
+.grid-with-labels {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+}
+.grid-col-labels {
+  display: flex;
+  gap: 3px;
+  padding-left: 26px;
+}
+.grid-col-labels span {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 0.72rem;
+  color: var(--ocean-deep);
+  text-align: center;
+  flex: 1;
+  opacity: 0.7;
+}
+.grid-row { display: flex; gap: 3px; align-items: center; }
+.row-label {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 0.72rem;
+  color: var(--ocean-deep);
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+  padding-right: 4px;
+  opacity: 0.7;
+}
+
+/* ── CELLS ── */
+.cell {
+  flex: 1;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, #5dd0f5 0%, #1a9fe0 100%);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: transform 0.12s, filter 0.12s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  min-width: 22px;
+  min-height: 22px;
+  border: 2px solid rgba(255,255,255,0.3);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 1px 3px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+/* tiny wave shimmer inside each cell */
+.cell::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: -50%; right: -50%; height: 40%;
+  background: rgba(255,255,255,0.12);
+  border-radius: 50% 50% 0 0;
+  animation: cellWave 3s ease-in-out infinite;
+}
+@keyframes cellWave{0%,100%{transform:translateY(3px);}50%{transform:translateY(-2px);}}
+
+.cell:hover:not(.hit):not(.miss):not(.ship-placed):not(.sunk) {
+  transform: scale(1.18);
+  filter: brightness(1.25);
+  z-index: 2;
+  border-color: rgba(255,255,255,0.7);
+}
+
+.cell.ship-placed {
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border-color: #bbf7d0;
+  cursor: default;
+}
+.cell.ship-placed::after {
+  content: '🚢';
+  font-size: 0.65em;
+  position: absolute;
+}
+
+.cell.hit {
+  background: linear-gradient(135deg, #ff6b6b, #dc2626) !important;
+  border-color: #fca5a5 !important;
+  cursor: default;
+  animation: hitPop 0.5s cubic-bezier(.34,1.56,.64,1);
+}
+.cell.hit::before { display: none; }
+@keyframes hitPop{0%{transform:scale(0.5);opacity:0;}100%{transform:scale(1);opacity:1;}}
+
+.cell.miss {
+  background: linear-gradient(135deg, #bae6fd, #7dd3fc) !important;
+  border-color: #e0f2fe !important;
+  cursor: default;
+  opacity: 0.75;
+}
+.cell.miss::before { display: none; }
+
+.cell.sunk {
+  background: linear-gradient(135deg, #f97316, #b91c1c) !important;
+  border-color: #fed7aa !important;
+  cursor: default;
+  animation: sunkShake 0.6s ease;
+}
+.cell.sunk::before { display: none; }
+@keyframes sunkShake{
+  0%{transform:rotate(0) scale(1.4);}
+  20%{transform:rotate(-8deg) scale(1.1);}
+  40%{transform:rotate(8deg) scale(1.05);}
+  60%{transform:rotate(-4deg);}
+  80%{transform:rotate(4deg);}
+  100%{transform:rotate(0) scale(1);}
+}
+
+.highlight-cell {
+  background: linear-gradient(135deg, #a7f3d0, #34d399) !important;
+  border-color: #6ee7b7 !important;
+  transform: scale(1.1) !important;
+  z-index: 3 !important;
+}
+.invalid-cell {
+  background: linear-gradient(135deg, #fecaca, #f87171) !important;
+  border-color: #fca5a5 !important;
+}
+
+/* ── SHIPS REMAINING ── */
+.ships-remaining {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+.ship-badge {
+  background: var(--ocean-deep);
+  color: white;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+  transition: all 0.3s;
+}
+.ship-badge.sunk-badge {
+  background: #d1d5db;
+  text-decoration: line-through;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+/* ── WIN/LOSE OVERLAY ── */
+#message-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,30,80,0.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+#message-overlay.show { display: flex; }
+
+.message-box {
+  background: white;
+  border-radius: 32px;
+  padding: 36px 40px;
+  text-align: center;
+  box-shadow: 0 20px 0 rgba(0,0,0,0.15), 0 30px 60px rgba(0,0,0,0.25);
+  animation: msgPop 0.5s cubic-bezier(.34,1.56,.64,1);
+  max-width: 440px;
+  width: 92%;
+  position: relative;
+  overflow: hidden;
+}
+@keyframes msgPop{from{transform:scale(0.3) rotate(-8deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
+
+.message-box .big-emoji {
+  font-size: 5rem;
+  display: block;
+  margin-bottom: 8px;
+  animation: emojiSpin 0.6s cubic-bezier(.34,1.56,.64,1) 0.3s both;
+}
+@keyframes emojiSpin{from{transform:rotate(-180deg) scale(0);}to{transform:rotate(0) scale(1);}}
+
+.message-box h2 {
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 2.4rem;
+  color: var(--ocean-deep);
+  margin-bottom: 6px;
+}
+.message-box p {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 14px;
+  font-weight: 800;
+}
+.score-summary {
+  display: flex; gap: 8px; justify-content: center;
+  flex-wrap: wrap; margin-bottom: 14px;
+}
+.score-pill {
+  background: var(--ocean-pale);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1rem;
+  color: var(--ocean-deep);
+  border: 2px solid var(--ocean-light);
+}
+.score-pill span { color: var(--ocean); }
+
+.name-prompt-box { margin: 10px 0 16px; }
+.name-prompt-box input[type=text] {
+  width: 100%;
+  padding: 12px 18px;
+  border: 3px solid var(--sand);
+  border-radius: 16px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.3rem;
+  color: var(--ocean-deep);
+  text-align: center;
+  outline: none;
+  background: #fffdf0;
+  transition: border-color 0.2s;
+}
+.name-prompt-box input[type=text]:focus { border-color: var(--ocean); }
+
+.btn-overlay {
+  display: inline-block;
+  padding: 13px 28px;
+  font-family: 'Bubblegum Sans', cursive;
+  font-size: 1.3rem;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  margin: 5px;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.btn-overlay:hover { transform: translateY(-3px); }
+.btn-overlay:active { transform: translateY(3px); }
+.btn-save {
+  background: linear-gradient(135deg, var(--mint), #059669);
+  color: white;
+  box-shadow: 0 5px 0 var(--mint-dark);
+}
+.btn-play-again {
+  background: linear-gradient(135deg, var(--ocean), var(--ocean-light));
+  color: white;
+  box-shadow: 0 5px 0 var(--ocean-deep);
+}
+
+/* ── CONFETTI ── */
+.confetti-piece {
+  position: fixed;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 300;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .boards-container { flex-direction: column; }
+  .board-wrapper { max-width: 100%; }
+  #setup-panel, #highscore-panel { padding: 18px 16px; }
+  .game-header { gap: 7px; }
+  .score-card { padding: 6px 10px; }
+  .message-box { padding: 28px 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background scene -->
+<div class="bg-scene">
+  <div class="sun"></div>
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+  <div class="fish">🐠</div>
+  <div class="fish">🐟</div>
+  <div class="fish">🦈</div>
+</div>
+
+<div id="app">
+  <div class="game-title">
+    <h1>⚓ Captain's Battle! 🚢</h1>
+    <p class="tagline">Find & sink the enemy fleet before they sink yours! 🌊</p>
+  </div>
+
+  <!-- SETUP PANEL -->
+  <div id="setup-panel" class="card">
+    <div class="card-title">🎮 Set Up Your Adventure!</div>
+
+    <div class="name-input-row">
+      <label>🧑‍✈️ Captain:</label>
+      <input type="text" id="player-name-input" placeholder="What's your name?" maxlength="20" value="">
+    </div>
+
+    <div class="setup-row">
+      <label>📏 Rows:</label>
+      <input type="range" id="rows-range" min="5" max="15" value="8" oninput="updateVal('rows')">
+      <div class="val-badge" id="rows-val">8</div>
+    </div>
+    <div class="setup-row">
+      <label>📐 Columns:</label>
+      <input type="range" id="cols-range" min="5" max="15" value="8" oninput="updateVal('cols')">
+      <div class="val-badge" id="cols-val">8</div>
+    </div>
+
+    <div class="ships-setup">
+      <h3>🛳️ Choose Your Fleet!</h3>
+
+      <div class="ship-row">
+        <span class="ship-icon">🚤</span>
+        <label>Speedboat:</label>
+        <div class="ship-preview"><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div></div>
+        <div class="spacer"></div>
+        <input type="number" id="ship2" min="0" max="6" value="2">
+      </div>
+      <div class="ship-row">
+        <span class="ship-icon">⛵</span>
+        <label>Cruiser:</label>
+        <div class="ship-preview"><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div></div>
+        <div class="spacer"></div>
+        <input type="number" id="ship3" min="0" max="4" value="1">
+      </div>
+      <div class="ship-row">
+        <span class="ship-icon">🛳️</span>
+        <label>Battleship:</label>
+        <div class="ship-preview"><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div></div>
+        <div class="spacer"></div>
+        <input type="number" id="ship4" min="0" max="3" value="1">
+      </div>
+      <div class="ship-row">
+        <span class="ship-icon">🚢</span>
+        <label>Carrier:</label>
+        <div class="ship-preview"><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div><div class="ship-cell-preview"></div></div>
+        <div class="spacer"></div>
+        <input type="number" id="ship5" min="0" max="2" value="1">
+      </div>
+      <div id="fleet-error"></div>
+    </div>
+
+    <button class="btn-launch" onclick="startGame()">🚀 Set Sail!</button>
+  </div>
+
+  <!-- HIGH SCORE PANEL -->
+  <div id="highscore-panel" class="card">
+    <div class="card-title">🏆 Hall of Fame!</div>
+    <div id="hs-content"><div class="hs-empty">⚓ No games yet — be the first hero! 🌊</div></div>
+    <button class="hs-clear-btn" onclick="clearHighScores()">🗑️ Clear Scores</button>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="game-area">
+    <div class="game-header">
+      <div class="scoreboard">
+        <div class="score-card captain-card">
+          <div class="sc-label">🧑‍✈️ Captain</div>
+          <div class="sc-val" id="display-player-name">You</div>
+        </div>
+        <div class="score-card hit-card">
+          <div class="sc-label">🎯 Hits</div>
+          <div class="sc-val" id="player-hits">0</div>
+        </div>
+        <div class="score-card sunk-card">
+          <div class="sc-label">💥 Sunk</div>
+          <div class="sc-val" id="player-sunk">0</div>
+        </div>
+        <div class="score-card">
+          <div class="sc-label">💣 Shots</div>
+          <div class="sc-val" id="player-shots">0</div>
+        </div>
+      </div>
+      <div id="turn-indicator">⚓ Your Turn!</div>
+      <button class="btn-back" id="back-btn" onclick="goBack()">🏠 New Game</button>
+    </div>
+
+    <!-- PLACEMENT PANEL -->
+    <div id="placement-panel">
+      <h3>📍 Place Your Ships!</h3>
+      <div class="placement-info">
+        <span id="placing-info"></span>
+        <div class="current-ship-display" id="current-ship-preview"></div>
+        <button class="btn-action btn-rotate" onclick="toggleOrientation()">🔄 Rotate</button>
+        <button class="btn-action btn-auto" onclick="autoPlacePlayerShips()">🎲 Auto-Place!</button>
+      </div>
+      <div class="placement-ships-list" id="placement-ships-list"></div>
+    </div>
+
+    <div id="thinking-msg" class="thinking" style="display:none;">
+      🤖 Enemy is thinking<span>.</span><span>.</span><span>.</span>
+    </div>
+
+    <div class="boards-container">
+      <div class="board-wrapper">
+        <div class="board-title">🗺️ Your Ocean</div>
+        <div class="board-subtitle">Your ships are here — protect them!</div>
+        <div class="grid-container">
+          <div class="grid-with-labels" id="player-board-container"></div>
+        </div>
+        <div class="ships-remaining" id="player-ships-remaining"></div>
+      </div>
+      <div class="board-wrapper">
+        <div class="board-title">🔭 Enemy Waters</div>
+        <div class="board-subtitle">Click here to fire your cannons! 💥</div>
+        <div class="grid-container">
+          <div class="grid-with-labels" id="enemy-board-container"></div>
+        </div>
+        <div class="ships-remaining" id="enemy-ships-remaining"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN/LOSE OVERLAY -->
+<div id="message-overlay">
+  <div class="message-box">
+    <span class="big-emoji" id="msg-emoji">🎉</span>
+    <h2 id="msg-title">You Won!</h2>
+    <p id="msg-body">All enemy ships are sunk!</p>
+    <div class="score-summary" id="msg-score-summary"></div>
+    <div class="name-prompt-box">
+      <input type="text" id="save-name-input" placeholder="Your captain name..." maxlength="20">
+    </div>
+    <button class="btn-overlay btn-save" onclick="saveScoreAndBack()">💾 Save My Score!</button>
+    <button class="btn-overlay btn-play-again" onclick="goBack()">🎮 Play Again!</button>
+  </div>
+</div>
+
+<script>
+// ===== GAME STATE =====
+let ROWS, COLS;
+let shipsConfig = [];
+let playerBoard, enemyBoard;
+let playerShipCells, enemyShipCells;
+let playerSunkShips, enemySunkShips;
+let allPlayerShips, allEnemyShips;
+let gamePhase = 'placement'; // placement | battle
+let isPlayerTurn = true;
+let placingIdx = 0;
+let placingOrientation = 'H'; // H or V
+let hoverCells = [];
+let playerHits = 0, playerShots = 0, playerSunkCount = 0;
+let playerName = 'Captain';
+let lastGameResult = null; // {won, shots, hits, sunk, name, date}
+
+const SHIP_NAMES = {2:'Boat',3:'Cruiser',4:'Battleship',5:'Carrier'};
+const SHIP_ICONS = {2:'🚤',3:'⛵',4:'🛳️',5:'🚢'};
+const HS_KEY = 'naval_battle_scores';
+const MAX_SCORES = 10;
+
+// ===== SETUP =====
+function updateVal(what) {
+  const v = document.getElementById(what+'-range').value;
+  document.getElementById(what+'-val').textContent = v;
+}
+
+function getFleet() {
+  const fleet = [];
+  [2,3,4,5].forEach(s => {
+    const n = parseInt(document.getElementById('ship'+s).value)||0;
+    for(let i=0;i<n;i++) fleet.push(s);
+  });
+  return fleet;
+}
+
+function startGame() {
+  ROWS = parseInt(document.getElementById('rows-range').value);
+  COLS = parseInt(document.getElementById('cols-range').value);
+  shipsConfig = getFleet();
+  playerName = document.getElementById('player-name-input').value.trim() || 'Captain';
+
+  if(shipsConfig.length === 0) {
+    showFleetError('Add at least one ship!');
+    return;
+  }
+  // Check all ships fit
+  const maxShip = Math.max(...shipsConfig);
+  if(maxShip > COLS && maxShip > ROWS) {
+    showFleetError(`A ship of size ${maxShip} doesn't fit in this grid! Use bigger grid or smaller ships.`);
+    return;
+  }
+  // Check total cells vs grid
+  const totalShipCells = shipsConfig.reduce((a,b)=>a+b,0);
+  if(totalShipCells > ROWS*COLS*0.5) {
+    showFleetError('Too many ships for this grid size! Reduce ships or increase grid size.');
+    return;
+  }
+  document.getElementById('fleet-error').style.display='none';
+  document.getElementById('display-player-name').textContent = playerName;
+
+  initGame();
+  document.getElementById('setup-panel').style.display='none';
+  document.getElementById('highscore-panel').style.display='none';
+  document.getElementById('game-area').style.display='block';
+}
+
+function showFleetError(msg) {
+  const el = document.getElementById('fleet-error');
+  el.textContent = msg;
+  el.style.display='block';
+}
+
+function goBack() {
+  closeMessage();
+  document.getElementById('setup-panel').style.display='block';
+  document.getElementById('highscore-panel').style.display='block';
+  document.getElementById('game-area').style.display='none';
+  renderHighScores();
+}
+
+function closeMessage() {
+  document.getElementById('message-overlay').classList.remove('show');
+}
+
+// ===== INIT =====
+function initGame() {
+  playerBoard = createEmptyBoard();
+  enemyBoard = createEmptyBoard();
+  playerShipCells = {};
+  enemyShipCells = {};
+  allPlayerShips = [];
+  allEnemyShips = [];
+  playerSunkShips = new Set();
+  enemySunkShips = new Set();
+  gamePhase = 'placement';
+  isPlayerTurn = true;
+  placingIdx = 0;
+  placingOrientation = 'H';
+  playerHits = 0; playerShots = 0; playerSunkCount = 0;
+  updateScoreDisplay();
+
+  // Place computer ships
+  autoPlaceShips(enemyBoard, enemyShipCells, allEnemyShips);
+
+  // Setup placement UI
+  updatePlacementUI();
+  renderPlayerBoard();
+  renderEnemyBoard();
+  renderShipsRemaining('enemy', allEnemyShips, enemySunkShips);
+  renderShipsRemaining('player', allPlayerShips, playerSunkShips);
+  document.getElementById('placement-panel').style.display='block';
+  document.getElementById('turn-indicator').textContent='📍 Place Your Ships!';
+}
+
+function createEmptyBoard() {
+  return Array.from({length:ROWS},()=>Array(COLS).fill(0));
+}
+
+// ===== SHIP PLACEMENT =====
+function autoPlaceShips(board, shipCells, allShips) {
+  const ships = [...shipsConfig].sort((a,b)=>b-a);
+  for(let shipId=0;shipId<ships.length;shipId++) {
+    const size = ships[shipId];
+    let placed = false;
+    let attempts = 0;
+    while(!placed && attempts < 500) {
+      attempts++;
+      const horiz = Math.random()<0.5;
+      const r = Math.floor(Math.random()*(horiz?ROWS:ROWS-size+1));
+      const c = Math.floor(Math.random()*(horiz?COLS-size+1:COLS));
+      if(canPlaceAuto(board,r,c,size,horiz)) {
+        placeShip(board,shipCells,allShips,r,c,size,horiz,shipId);
+        placed = true;
+      }
+    }
+  }
+}
+
+// For manual placement: only check the cells the ship occupies (no buffer)
+function canPlace(board,r,c,size,horiz) {
+  for(let i=0;i<size;i++) {
+    const nr = horiz?r:r+i;
+    const nc = horiz?c+i:c;
+    if(nr<0||nr>=ROWS||nc<0||nc>=COLS) return false;
+    if(board[nr][nc]!==0) return false;
+  }
+  return true;
+}
+
+// For auto-placement: keep buffer so ships don't touch
+function canPlaceAuto(board,r,c,size,horiz) {
+  for(let i=0;i<size;i++) {
+    const nr = horiz?r:r+i;
+    const nc = horiz?c+i:c;
+    if(nr<0||nr>=ROWS||nc<0||nc>=COLS) return false;
+    for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++) {
+      const tr=nr+dr, tc=nc+dc;
+      if(tr>=0&&tr<ROWS&&tc>=0&&tc<COLS&&board[tr][tc]!==0) return false;
+    }
+  }
+  return true;
+}
+
+function placeShip(board,shipCells,allShips,r,c,size,horiz,shipId) {
+  const cells=[];
+  for(let i=0;i<size;i++) {
+    const nr=horiz?r:r+i, nc=horiz?c+i:c;
+    board[nr][nc]=shipId+1;
+    cells.push([nr,nc]);
+  }
+  shipCells[shipId]={cells,size,sunk:false};
+  allShips.push({id:shipId,size,cells,sunk:false});
+}
+
+function autoPlacePlayerShips() {
+  playerBoard = createEmptyBoard();
+  playerShipCells = {};
+  allPlayerShips = [];
+  placingIdx = shipsConfig.length; // all placed
+  autoPlaceShips(playerBoard, playerShipCells, allPlayerShips);
+  renderPlayerBoard();
+  renderShipsRemaining('player', allPlayerShips, playerSunkShips);
+  startBattle();
+}
+
+function toggleOrientation() {
+  placingOrientation = placingOrientation==='H'?'V':'H';
+  clearHover();
+  updatePlacementUI();
+}
+
+function updatePlacementUI() {
+  const panel = document.getElementById('placement-panel');
+  if(placingIdx >= shipsConfig.length) {
+    panel.style.display='none';
+    return;
+  }
+  const size = shipsConfig[placingIdx];
+  document.getElementById('placing-info').textContent =
+    `Place your ${SHIP_ICONS[size]} ${SHIP_NAMES[size]} (size ${size}) — ${placingOrientation==='H'?'Horizontal ↔':'Vertical ↕'}`;
+  const preview = document.getElementById('current-ship-preview');
+  preview.innerHTML = '';
+  for(let i=0;i<size;i++) {
+    const d=document.createElement('div'); d.className='s'; preview.appendChild(d);
+  }
+
+  // Ships list
+  const list = document.getElementById('placement-ships-list');
+  list.innerHTML='';
+  shipsConfig.forEach((s,i)=>{
+    const el=document.createElement('div');
+    el.className='place-ship-item'+(i<placingIdx?' done':'');
+    el.innerHTML = SHIP_ICONS[s]+' '+SHIP_NAMES[s]+'('+s+')' + (i<placingIdx?' ✓':'');
+    list.appendChild(el);
+  });
+}
+
+// ===== RENDER BOARDS =====
+function renderPlayerBoard() {
+  const container = document.getElementById('player-board-container');
+  renderBoard(container, playerBoard, 'player', true);
+}
+
+function renderEnemyBoard() {
+  const container = document.getElementById('enemy-board-container');
+  renderBoard(container, enemyBoard, 'enemy', false);
+}
+
+function renderBoard(container, board, side, showShips) {
+  container.innerHTML='';
+  const colLabels = document.createElement('div');
+  colLabels.className='grid-col-labels';
+  for(let c=0;c<COLS;c++) {
+    const span=document.createElement('span');
+    span.textContent=String.fromCharCode(65+c);
+    colLabels.appendChild(span);
+  }
+  container.appendChild(colLabels);
+
+  for(let r=0;r<ROWS;r++) {
+    const row=document.createElement('div');
+    row.className='grid-row';
+    const rLabel=document.createElement('div');
+    rLabel.className='row-label';
+    rLabel.textContent=r+1;
+    row.appendChild(rLabel);
+
+    for(let c=0;c<COLS;c++) {
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.r=r; cell.dataset.c=c; cell.dataset.side=side;
+
+      const val=board[r][c];
+      if(val==='H') { cell.classList.add('hit'); cell.textContent='💥'; }
+      else if(val==='M') { cell.classList.add('miss'); cell.textContent='💧'; }
+      else if(val==='S') { cell.classList.add('sunk'); cell.textContent='🔥'; }
+      else if(val!==0 && showShips) { cell.classList.add('ship-placed'); cell.textContent='🚢'; }
+
+      if(side==='player' && gamePhase==='placement') {
+        cell.addEventListener('mouseenter',()=>hoverPlacement(r,c));
+        cell.addEventListener('click',()=>clickPlacement(r,c));
+      }
+      if(side==='enemy' && gamePhase==='battle' && isPlayerTurn) {
+        if(val!=='H'&&val!=='M'&&val!=='S') {
+          cell.addEventListener('click',()=>playerShoot(r,c));
+        }
+      }
+      row.appendChild(cell);
+    }
+    container.appendChild(row);
+  }
+
+  // Clear hover when mouse leaves the whole board
+  if(side==='player' && gamePhase==='placement') {
+    container.addEventListener('mouseleave', clearHover);
+  }
+}
+
+function getPlayerCell(r,c) {
+  const container=document.getElementById('player-board-container');
+  const rows=container.querySelectorAll('.grid-row');
+  return rows[r]?.querySelectorAll('.cell')[c];
+}
+function getEnemyCell(r,c) {
+  const container=document.getElementById('enemy-board-container');
+  const rows=container.querySelectorAll('.grid-row');
+  return rows[r]?.querySelectorAll('.cell')[c];
+}
+
+// ===== PLACEMENT INTERACTION =====
+function hoverPlacement(r,c) {
+  if(gamePhase!=='placement'||placingIdx>=shipsConfig.length) return;
+  clearHover();
+  const size=shipsConfig[placingIdx];
+  const horiz=placingOrientation==='H';
+  const fits = canPlace(playerBoard,r,c,size,horiz);
+  for(let i=0;i<size;i++) {
+    const nr=horiz?r:r+i, nc=horiz?c+i:c;
+    // Clamp to grid edges so we always show exactly `size` cells
+    const cr=Math.max(0,Math.min(ROWS-1,nr));
+    const cc=Math.max(0,Math.min(COLS-1,nc));
+    const cell=getPlayerCell(cr,cc);
+    if(cell && !hoverCells.includes(cell)) {
+      cell.classList.add(fits?'highlight-cell':'invalid-cell');
+      hoverCells.push(cell);
+    }
+  }
+}
+
+function clearHover() {
+  hoverCells.forEach(c=>{c.classList.remove('highlight-cell','invalid-cell');});
+  hoverCells=[];
+}
+
+function clickPlacement(r,c) {
+  if(gamePhase!=='placement'||placingIdx>=shipsConfig.length) return;
+  const size=shipsConfig[placingIdx];
+  const horiz=placingOrientation==='H';
+  if(!canPlace(playerBoard,r,c,size,horiz)) return;
+  clearHover();
+  placeShip(playerBoard,playerShipCells,allPlayerShips,r,c,size,horiz,placingIdx);
+  placingIdx++;
+  renderPlayerBoard(); // single render after placing
+  renderShipsRemaining('player',allPlayerShips,playerSunkShips);
+  if(placingIdx>=shipsConfig.length) {
+    startBattle();
+  } else {
+    updatePlacementUI();
+    // Re-hover current cell so player sees the next ship preview immediately
+    hoverPlacement(r,c);
+  }
+}
+
+function startBattle() {
+  gamePhase='battle';
+  isPlayerTurn=true;
+  document.getElementById('placement-panel').style.display='none';
+  document.getElementById('turn-indicator').textContent='⚓ Your Turn!';
+  renderEnemyBoard();
+  renderPlayerBoard();
+}
+
+// ===== SHOOTING =====
+function playerShoot(r,c) {
+  if(!isPlayerTurn||gamePhase!=='battle') return;
+  const val=enemyBoard[r][c];
+  if(val==='H'||val==='M'||val==='S') return;
+
+  playerShots++;
+  isPlayerTurn=false;
+  document.getElementById('turn-indicator').textContent='🤔 Enemy Turn...';
+
+  let hit=false, shipId=null;
+  if(typeof val==='number'&&val!==0) {
+    hit=true; shipId=val-1;
+    enemyBoard[r][c]='H';
+    playerHits++;
+    // Check sunk
+    const ship=enemyShipCells[shipId];
+    if(ship&&ship.cells.every(([sr,sc])=>enemyBoard[sr][sc]==='H')) {
+      ship.cells.forEach(([sr,sc])=>{enemyBoard[sr][sc]='S';});
+      ship.sunk=true;
+      allEnemyShips[shipId].sunk=true;
+      enemySunkShips.add(shipId);
+      playerSunkCount++;
+    }
+  } else {
+    enemyBoard[r][c]='M';
+  }
+
+  updateScoreDisplay();
+  renderEnemyBoard();
+  renderShipsRemaining('enemy',allEnemyShips,enemySunkShips);
+
+  if(checkWin(enemyBoard)) {
+    launchConfetti();
+    showMessage('🎉','You Won! 🏆',`Amazing! You sank all enemy ships in ${playerShots} shots! 🎊`, true);
+    gamePhase='over';
+    return;
+  }
+
+  setTimeout(computerTurn, 900);
+}
+
+// ===== COMPUTER AI =====
+let aiMode = 'hunt';
+let aiHits = [];
+let aiTargets = [];
+let aiSunkShips = new Set();
+
+function initAI() {
+  aiMode='hunt'; aiHits=[]; aiTargets=[];
+}
+
+function computerTurn() {
+  if(gamePhase==='over') return;
+  document.getElementById('thinking-msg').style.display='block';
+
+  setTimeout(()=>{
+    document.getElementById('thinking-msg').style.display='none';
+    const [r,c] = chooseAITarget();
+    const val=playerBoard[r][c];
+    let hit=false;
+
+    if(typeof val==='number'&&val!==0) {
+      hit=true;
+      const shipId=val-1;
+      playerBoard[r][c]='H';
+      aiHits.push([r,c]);
+
+      const ship=playerShipCells[shipId];
+      if(ship&&ship.cells.every(([sr,sc])=>playerBoard[sr][sc]==='H')) {
+        ship.cells.forEach(([sr,sc])=>{playerBoard[sr][sc]='S';});
+        ship.sunk=true;
+        allPlayerShips[shipId].sunk=true;
+        playerSunkShips.add(shipId);
+        aiHits=aiHits.filter(h=>!ship.cells.some(s=>s[0]===h[0]&&s[1]===h[1]));
+        aiTargets=[];
+        aiMode='hunt';
+        renderShipsRemaining('player',allPlayerShips,playerSunkShips);
+      } else {
+        aiMode='target';
+        updateAITargets(r,c);
+      }
+    } else {
+      playerBoard[r][c]='M';
+      if(aiMode==='target'&&aiTargets.length===0) {
+        // Try other direction
+        if(aiHits.length>0) updateAITargets(aiHits[0][0],aiHits[0][1]);
+      }
+    }
+
+    renderPlayerBoard();
+
+    if(checkWin(playerBoard)) {
+      showMessage('😢','Oh No! 😭','The enemy sank all your ships! Better luck next time! 🌊', false);
+      gamePhase='over';
+      return;
+    }
+
+    isPlayerTurn=true;
+    document.getElementById('turn-indicator').textContent='⚓ Your Turn!';
+    renderEnemyBoard();
+  }, 400);
+}
+
+function chooseAITarget() {
+  if(aiMode==='target'&&aiTargets.length>0) {
+    const idx=Math.floor(Math.random()*aiTargets.length);
+    const t=aiTargets.splice(idx,1)[0];
+    return t;
+  }
+  // Hunt: checkerboard pattern
+  const candidates=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+    const v=playerBoard[r][c];
+    if(v!=='H'&&v!=='M'&&v!=='S'&&(r+c)%2===0) candidates.push([r,c]);
+  }
+  if(candidates.length>0) return candidates[Math.floor(Math.random()*candidates.length)];
+  // Fallback
+  const all=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+    const v=playerBoard[r][c];
+    if(v!=='H'&&v!=='M'&&v!=='S') all.push([r,c]);
+  }
+  return all[Math.floor(Math.random()*all.length)];
+}
+
+function updateAITargets(r,c) {
+  aiTargets=[];
+  if(aiHits.length>=2) {
+    // Determine direction
+    const h=aiHits;
+    if(h[0][0]===h[1][0]) {
+      // Same row — horizontal
+      const minC=Math.min(...h.map(x=>x[1]));
+      const maxC=Math.max(...h.map(x=>x[1]));
+      if(minC-1>=0&&playerBoard[r][minC-1]!=='H'&&playerBoard[r][minC-1]!=='M'&&playerBoard[r][minC-1]!=='S') aiTargets.push([r,minC-1]);
+      if(maxC+1<COLS&&playerBoard[r][maxC+1]!=='H'&&playerBoard[r][maxC+1]!=='M'&&playerBoard[r][maxC+1]!=='S') aiTargets.push([r,maxC+1]);
+    } else {
+      // Vertical
+      const minR=Math.min(...h.map(x=>x[0]));
+      const maxR=Math.max(...h.map(x=>x[0]));
+      if(minR-1>=0&&playerBoard[minR-1][c]!=='H'&&playerBoard[minR-1][c]!=='M'&&playerBoard[minR-1][c]!=='S') aiTargets.push([minR-1,c]);
+      if(maxR+1<ROWS&&playerBoard[maxR+1][c]!=='H'&&playerBoard[maxR+1][c]!=='M'&&playerBoard[maxR+1][c]!=='S') aiTargets.push([maxR+1,c]);
+    }
+  } else {
+    [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([nr,nc])=>{
+      if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS) {
+        const v=playerBoard[nr][nc];
+        if(v!=='H'&&v!=='M'&&v!=='S') aiTargets.push([nr,nc]);
+      }
+    });
+  }
+}
+
+// ===== HELPERS =====
+function checkWin(board) {
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) {
+    if(typeof board[r][c]==='number'&&board[r][c]!==0) return false;
+  }
+  return true;
+}
+
+function updateScoreDisplay() {
+  document.getElementById('player-hits').textContent=playerHits;
+  document.getElementById('player-sunk').textContent=playerSunkCount;
+  document.getElementById('player-shots').textContent=playerShots;
+}
+
+function renderShipsRemaining(side, allShips, sunkSet) {
+  const container=document.getElementById(side+'-ships-remaining');
+  if(!container) return;
+  container.innerHTML='';
+  allShips.forEach((ship,i)=>{
+    const badge=document.createElement('div');
+    badge.className='ship-badge'+(ship.sunk?' sunk-badge':'');
+    badge.innerHTML=SHIP_ICONS[ship.size]+(ship.sunk?'✗':'');
+    badge.title=SHIP_NAMES[ship.size]+(ship.sunk?' (Sunk!)':'');
+    container.appendChild(badge);
+  });
+}
+
+function showMessage(emoji,title,body,won) {
+  document.getElementById('msg-emoji').textContent=emoji;
+  document.getElementById('msg-title').textContent=title;
+  document.getElementById('msg-body').textContent=body;
+  // Save result for score storage
+  lastGameResult = {
+    won, shots: playerShots, hits: playerHits, sunk: playerSunkCount,
+    grid: ROWS+'x'+COLS, date: new Date().toLocaleDateString()
+  };
+  // Score summary pills
+  const summary = document.getElementById('msg-score-summary');
+  summary.innerHTML =
+    `<div class="score-pill">💣 <span>${playerShots}</span> shots</div>` +
+    `<div class="score-pill">🎯 <span>${playerHits}</span> hits</div>` +
+    `<div class="score-pill">💥 <span>${playerSunkCount}</span> sunk</div>` +
+    `<div class="score-pill">🗺️ <span>${ROWS}×${COLS}</span></div>`;
+  // Pre-fill name
+  document.getElementById('save-name-input').value = playerName;
+  document.getElementById('message-overlay').classList.add('show');
+}
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const colors = ['#ff6b6b','#ffd60a','#06d6a0','#1a9fe0','#a78bfa','#ff9a3c','#f472b6'];
+  for(let i=0;i<80;i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left:${Math.random()*100}vw;
+      top:-10px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      width:${6+Math.random()*10}px;
+      height:${6+Math.random()*10}px;
+      border-radius:${Math.random()>0.5?'50%':'2px'};
+      animation-duration:${2+Math.random()*2.5}s;
+      animation-delay:${Math.random()*0.8}s;
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// Spawn random bubbles in the background
+function spawnBubble() {
+  const scene = document.querySelector('.bg-scene');
+  if(!scene) return;
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  const size = 6+Math.random()*14;
+  b.style.cssText = `
+    width:${size}px; height:${size}px;
+    left:${Math.random()*100}%;
+    bottom:${Math.random()*30}%;
+    animation-duration:${3+Math.random()*4}s;
+    animation-delay:0s;
+  `;
+  scene.appendChild(b);
+  b.addEventListener('animationend', ()=>b.remove());
+}
+setInterval(spawnBubble, 600);
+
+
+function loadScores() {
+  try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
+  catch(e) { return []; }
+}
+
+function saveScores(scores) {
+  try { localStorage.setItem(HS_KEY, JSON.stringify(scores)); } catch(e) {}
+}
+
+function addScore(entry) {
+  const scores = loadScores();
+  scores.push(entry);
+  // Sort: wins first (by fewest shots), then losses (by most ships sunk)
+  scores.sort((a,b) => {
+    if(a.won !== b.won) return b.won - a.won; // wins first
+    if(a.won) return a.shots - b.shots;       // fewer shots = better
+    return b.sunk - a.sunk;                   // more sunk = better in a loss
+  });
+  saveScores(scores.slice(0, MAX_SCORES));
+}
+
+function clearHighScores() {
+  if(confirm('Clear all high scores? This cannot be undone!')) {
+    localStorage.removeItem(HS_KEY);
+    renderHighScores();
+  }
+}
+
+function saveScoreAndBack() {
+  if(!lastGameResult) { goBack(); return; }
+  const name = document.getElementById('save-name-input').value.trim() || playerName || 'Captain';
+  addScore({ ...lastGameResult, name });
+  lastGameResult = null;
+  goBack();
+}
+
+function renderHighScores() {
+  const scores = loadScores();
+  const container = document.getElementById('hs-content');
+  if(!scores.length) {
+    container.innerHTML = '<div class="hs-empty">No games played yet. Be the first! 🚢</div>';
+    return;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  const rowClass = ['gold','silver','bronze'];
+  let html = `<table class="hs-table">
+    <thead><tr>
+      <th>#</th><th>Name</th><th>Result</th><th>Shots</th><th>Hits</th><th>Sunk</th><th>Grid</th><th>Date</th>
+    </tr></thead><tbody>`;
+  scores.forEach((s,i) => {
+    const cls = i < 3 ? rowClass[i] : '';
+    const rank = i < 3 ? medals[i] : (i+1);
+    const resultHtml = s.won
+      ? '<span class="hs-result-win">✅ WIN</span>'
+      : '<span class="hs-result-lose">❌ LOSS</span>';
+    html += `<tr class="hs-row ${cls}">
+      <td class="hs-rank">${rank}</td>
+      <td class="hs-name">${escHtml(s.name)}</td>
+      <td>${resultHtml}</td>
+      <td class="hs-score">${s.shots}</td>
+      <td class="hs-score">${s.hits}</td>
+      <td class="hs-score">${s.sunk}</td>
+      <td class="hs-date">${s.grid||'?'}</td>
+      <td class="hs-date">${s.date||''}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Init AI on game start
+const _origInit=initGame;
+window.initGame=function(){
+  initAI();
+  _origInit();
+};
+
+// Load scores on page load
+renderHighScores();
+
+// ===== PWA SERVICE WORKER =====
+// Inlined as a blob so no separate file is needed
+const SW_CODE = `
+const CACHE = 'captains-battle-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(cache =>
+      cache.addAll([self.location.href.replace(/\\/[^\\/]*$/, '') || '/'])
+    ).catch(() => {})
+  );
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+  ));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request).catch(() => r))
+  );
+});
+`;
+
+if ('serviceWorker' in navigator) {
+  const blob = new Blob([SW_CODE], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl)
+    .then(() => console.log('⚓ Service Worker registered — game works offline!'))
+    .catch(e => console.warn('SW registration failed:', e));
+}
+
+// ===== INSTALL BANNER =====
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner() {
+  if (document.getElementById('install-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.innerHTML = `
+    <span>📲 Add to your Home Screen to play anytime!</span>
+    <button onclick="triggerInstall()">Install App</button>
+    <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);box-shadow:none;">✕</button>
+  `;
+  banner.style.cssText = `
+    position:fixed; bottom:0; left:0; right:0; z-index:500;
+    background:linear-gradient(135deg,#1a9fe0,#0d5fa6);
+    color:white; padding:12px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-family:'Bubblegum Sans',cursive; font-size:1rem;
+    box-shadow:0 -4px 20px rgba(0,0,0,0.2);
+    animation:slideUp 0.4s cubic-bezier(.34,1.56,.64,1);
+  `;
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    #install-banner span{flex:1;}
+    #install-banner button{
+      padding:8px 18px; border:none; border-radius:12px; cursor:pointer;
+      font-family:'Bubblegum Sans',cursive; font-size:0.95rem;
+      background:white; color:#0d5fa6;
+      box-shadow:0 3px 0 rgba(0,0,0,0.15);
+    }
+    #install-banner button:active{transform:translateY(2px);}
+  `;
+  document.head.appendChild(style);
+  document.body.appendChild(banner);
+}
+
+function triggerInstall() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then(() => {
+    deferredInstallPrompt = null;
+    const b = document.getElementById('install-banner');
+    if (b) b.remove();
+  });
+}
+
+// On iOS, show a manual tip since iOS doesn't fire beforeinstallprompt
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone;
+if (isIOS && !isStandalone) {
+  setTimeout(() => {
+    if (document.getElementById('install-banner')) return;
+    const tip = document.createElement('div');
+    tip.id = 'install-banner';
+    tip.innerHTML = `
+      <span>📲 Tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong> to install!</span>
+      <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);color:white;box-shadow:none;">Got it ✓</button>
+    `;
+    tip.style.cssText = `
+      position:fixed; bottom:0; left:0; right:0; z-index:500;
+      background:linear-gradient(135deg,#1a9fe0,#0d5fa6);
+      color:white; padding:12px 16px;
+      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+      font-family:'Bubblegum Sans',cursive; font-size:1rem;
+      box-shadow:0 -4px 20px rgba(0,0,0,0.2);
+      animation:slideUp 0.4s cubic-bezier(.34,1.56,.64,1);
+    `;
+    document.body.appendChild(tip);
+  }, 2500);
+}
+</script>
+</body>
+</html>
